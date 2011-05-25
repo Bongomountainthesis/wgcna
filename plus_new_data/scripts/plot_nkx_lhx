@@ -1,0 +1,205 @@
+#!/usr/local/bin/Rscript
+
+require("WGCNA")
+
+options(stringsAsFactors = FALSE)
+
+probe <- c(as.character(1690215),as.character(540717))
+
+cut.off <- as.numeric(0.3)
+
+
+load("results/E.RData")
+load("results/WCGNA_part1.RData")
+load("results/results.RData")
+load("data/TOM.RData")
+
+
+these <- TOM[probe,]
+
+##find genes that are above cut.off in for lhx6 or nkx
+
+nkx.cutoff <- colnames(these[,which(these[1,]>=cut.off)])
+lhx6.cutoff <- colnames(these[,which(these[2,]>=cut.off)])
+
+threshold <- c(nkx.cutoff,lhx6.cutoff)
+threshold <- threshold[order(threshold,decreasing=FALSE)]
+threshold <- threshold[!(duplicated(threshold))]
+
+these.results <- results[threshold,]
+dim(these.results)
+#write.csv(these.results, file=paste(probe,"_nearbytom.csv", sep="")) 
+
+##########get TOM of gene of interest for cytoscape
+
+#remove NAs
+
+these.results <- these.results[which(these.results[,"symbol"]!="NA"),]
+
+ids <- these.results[,"ID"]
+
+nodeNames <- these.results[,"symbol"]
+
+probeTOM <- TOM[ids,ids]
+
+colnames(probeTOM) <- nodeNames
+
+rownames(probeTOM) <- nodeNames
+
+
+                                        #Export TOM to cytoscape
+cat("Exporting for Cytoscape\n")
+
+cyt = exportNetworkToCytoscape(
+  probeTOM,
+  edgeFile = "Probe-CytoscapeInput-edges-FullTOM.txt",
+  nodeFile = "Probe-CytoscapeInput-nodes-FullTOM.txt",
+  weighted = TRUE,
+  threshold = 0.8,
+  )
+
+#############this still doesnt work as they're all the bloody same....
+
+#try Gabrb3/1/2, Gabrr1 and gsx1
+
+
+####also want to try annotating all genes with regulation of transcription and then draw clusters...
+
+genes <- results[,"symbol"]
+colnames(TOM) <- genes
+rownames(TOM) <- genes
+
+ens.id <- results[,"EnsemblID"]
+
+library(biomaRt)
+ensmart<- useMart("ensembl",dataset="mmusculus_gene_ensembl")
+results.reg<- getBM(filters="ensembl_gene_id", values=ens.id, attributes=c("ensembl_gene_id", "go_biological_process_id"), mart=ensmart)
+
+results.reg<- unique(results.reg[results.reg[,2]=="GO:0045449","ensembl_gene_id"])
+
+results.tf<- getBM(filters="ensembl_gene_id", values=ens.id, attributes=c("ensembl_gene_id", "go_molecular_function_id"), mart=ensmart)
+
+results.tf <- unique(results.tf[results.tf[,2]=="GO:0003700","ensembl_gene_id"])
+
+results.go <- c(results.reg, results.tf)
+
+results.go <- results.go[order(results.go,decreasing=FALSE)]
+
+results.go <- results.go[!duplicated(results.go)]
+
+symbols.go <- results[which(results[,"EnsemblID"] %in% results.go),"symbol"]
+
+TOM.regtf <- TOM[symbols.go,symbols.go]
+
+
+###convert each 1 to 0
+
+TOM.test <- apply(TOM.regtf, 1, function(x){  
+    if(x == 1){
+    x <- 0
+ } 
+}
+)
+
+
+NS.ave <- if(x) = 1sum(x[ns.cols])/length(ns.cols)
+    N.ave   <- sum(x[n.cols])/length(n.cols)
+    return(c(NS.ave, N.ave))
+ }
+)
+
+                                        #Export TOM to cytoscape
+cat("Exporting for Cytoscape\n")
+
+cyt = exportNetworkToCytoscape(
+  TOM.tf,
+  edgeFile = "Probe-CytoscapeInput-edges-FullTOM.txt",
+  nodeFile = "Probe-CytoscapeInput-nodes-FullTOM.txt",
+  weighted = TRUE,
+  threshold = 0.4,
+  )
+
+
+##########try taking top genes in each cluster Kme>0.5, annotate with go terms, pull out reg of trans and then draw clusters
+
+#condense results down into the most correlated genes
+
+results.blue <- results[which(results[,"ModuleName"]=="blue"),]
+results.blue <- results.blue[which(results.blue[,"MEblue"]>=0.5),]
+
+results.brown <- results[which(results[,"ModuleName"]=="brown"),]
+results.brown <- results.brown[which(results.brown[,"MEbrown"]>=0.5),]
+
+results.turquoise <- results[which(results[,"ModuleName"]=="turquoise"),]
+results.turquoise <- results.turquoise[which(results.turquoise[,"MEturquoise"]>=0.5),]
+
+results.yellow <- results[which(results[,"ModuleName"]=="yellow"),]
+results.yellow <- results.yellow[which(results.yellow[,"MEyellow"]>=0.5),]
+
+blue.ids <- results.blue[,"symbol"]
+brown.ids <- results.brown[,"symbol"]
+turquoise.ids <- results.turquoise[,"symbol"]
+yellow.ids <- results.yellow[,"symbol"]
+
+ids <- c(blue.ids,brown.ids,turquoise.ids,yellow.ids)
+
+ids <- ids[which(ids!="NA")]
+
+results.k <- results[which(results[,"symbol"]%in%ids),]
+
+kme.ensembl <- results.k[,"EnsemblID"]
+
+library(biomaRt)
+ensmart<- useMart("ensembl",dataset="mmusculus_gene_ensembl")
+results.reg<- getBM(filters="ensembl_gene_id", values=kme.ensembl, attributes=c("ensembl_gene_id", "go_biological_process_id"), mart=ensmart)
+
+results.reg<- unique(results.reg[results.reg[,2]=="GO:0045449","ensembl_gene_id"])
+
+results.tf<- getBM(filters="ensembl_gene_id", values=kme.ensembl, attributes=c("ensembl_gene_id", "go_molecular_function_id"), mart=ensmart)
+
+results.tf <- unique(results.tf[results.tf[,2]=="GO:0003700","ensembl_gene_id"])
+
+results.go <- c(results.tf,results.reg)
+
+results.go <- unique(results.go)
+
+symbols.go <- results[which(results[,"EnsemblID"]%in% results.go),"symbol"]
+
+genes <- results[,"symbol"]
+colnames(TOM) <- genes
+rownames(TOM) <- genes
+
+TOM.go <- TOM[symbols.go,symbols.go]
+
+TOM.go <- TOM.go^7
+
+                                        #Export TOM to cytoscape
+cat("Exporting for Cytoscape\n")
+
+cyt = exportNetworkToCytoscape(
+  TOM.go,
+  edgeFile = "GO_term_CytoscapeInput-edges-FullTOM.txt",
+  nodeFile = "GO_term_CytoscapeInput-nodes-FullTOM.txt",
+  weighted = TRUE,
+  threshold = 0.2,
+  )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,62 @@
+\documentclass[a4paper]{article}
+
+\usepackage{url}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Pre-processing of Mouse E13.5 MGE Illumina Expression Data}
+\author{Matthew Burney, Caroline Johnston}
+\maketitle
+
+\section{Dataset}
+
+Tissue from mouse E11.5 MGE was prepared by Matthew Burney. Tissue was sent to Lia De Faveri at the Genome Centre at QMUL, who used the standard Illumina protocol to extract RNA, make and label cDNA, hybridise to an Illumina MouseRef2 BeadChip and scan. The eight samples were each derived from single mice and were each assigned their own lane on the Beadchip. Lia used scanner settings to output txt and csv files and although TIFF files were not produced initially, she rescanned to generate TIFF images.
+
+Files can be found on the QMUL ftp server \url{ftp://138.37.175.1}, which can be accessed with login \textit{mburney} and password \textit{y3nrub}.
+
+Files were transferred onto the Molecular Neurobiology Group server by Caroline Johnston and they can be found, along with files derived as part of the analysis, at \url{file:///space/cassj/MattWTMouseMGE} or via the web at \url{http://mng.iop.kcl.ac.uk/data/MattWTMouseMGE} using username \textit{matt} and password \textit{br@1ns}.
+
+
+\section{Load Data}
+
+<<>>=
+
+library(beadarray)
+
+array.names <- paste("4613963039",c("A","B","C","D","E","F","G","H"),sep="_")
+
+BLData = readIllumina(
+  path="../GEXRawData300610/4613963039",
+  arrayNames = array.names,
+  singleChannel = TRUE,
+  metricsFile="Metrics.txt",
+  textType = ".txt", 
+  useImages=FALSE,
+  annoPkg="Mousev2",
+  backgroundMethod="none",  
+  )
+
+save(BLData, file="BLData.RData")
+
+@ 
+
+\section{The BLData object}
+
+<<>>=
+
+class(BLData)
+slotNames(BLData)
+an <- arrayNames(BLData)
+an
+names(BLData@beadData[[an[1]]])
+#raw G intensities
+BLData[[an[1]]]$G[1:5]
+#background
+BLData[[an[2]]]$Gb[1:5]
+pData(BLData)
+
+@ 
+
+
+\end{document}

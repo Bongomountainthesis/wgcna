@@ -1,0 +1,125 @@
+#!/usr/local/bin/Rscript
+
+require("WGCNA")
+
+options(stringsAsFactors = FALSE)
+
+load("results/E.RData")
+load("results/WCGNA_part1.RData")
+load("results/results.RData")
+load("data/TOM.RData")
+
+
+###take genes in the turquoise module, get their TOM matrix components and then send to cytoscape
+
+tur <- results[which(results[,"ModuleName"]=="turquoise"),]
+
+tur <- tur[order(tur[,"MEturquoise"],decreasing=TRUE),]
+
+tur <- tur[!duplicated(tur[,"symbol"]),]
+
+#label TOM matrix with gene symbols
+symbol <- results[,"symbol"]
+
+rownames(TOM) <- symbol
+colnames(TOM) <- symbol
+
+#get gene symbols in turquoise module, remove NAs and Riken genes and then pull out relevant columns of TOM matrix
+
+tur.symbol <- tur[,"symbol"]
+tur.symbol <- tur.symbol[which(tur.symbol!="NA")]
+tur.sym <- tur.symbol[grep(".*Rik$",tur.symbol,invert=TRUE)]
+
+TOM.tur <- TOM[tur.sym,tur.sym]
+
+TOM.tur <- TOM.tur^7
+
+TOM.32 <- TOM.tur[1:32,1:32]
+
+
+cyt = exportNetworkToCytoscape(
+  TOM.32,
+  edgeFile = "Turquoise32-CytoscapeInput-edges-TOM.txt",
+  nodeFile = "Turquoise32-CytoscapeInput-nodes-TOM.txt",
+  weighted = TRUE,
+  threshold = 0.029,
+  )
+
+###############take top 20 genes in each module and make a cytoscape network out of them...
+
+results <- results[grep(".*Rik$",results[,"symbol"],invert=TRUE),]
+results <- results[which(results[,"symbol"]!="NA"),]
+
+ens.id <- results[,"EnsemblID"]
+
+library(biomaRt)
+ensmart<- useMart("ensembl",dataset="mmusculus_gene_ensembl")
+results.reg<- getBM(filters="ensembl_gene_id", values=ens.id, attributes=c("ensembl_gene_id", "go_biological_process_id"), mart=ensmart)
+
+results.reg<- unique(results.reg[results.reg[,2]=="GO:0045449","ensembl_gene_id"])
+
+results.tf<- getBM(filters="ensembl_gene_id", values=ens.id, attributes=c("ensembl_gene_id", "go_molecular_function_id"), mart=ensmart)
+
+results.tf <- unique(results.tf[results.tf[,2]=="GO:0003700","ensembl_gene_id"])
+
+results.go <- c(results.reg, results.tf)
+
+results.go <- results.go[order(results.go,decreasing=FALSE)]
+
+results.go <- results.go[!duplicated(results.go)]
+
+symbols.go <- results[which(results[,"EnsemblID"] %in% results.go),"symbol"]
+
+
+
+blue <- results[which(results[,"ModuleName"]=="blue"),]
+blue <- blue[order(blue[,"MEblue"],decreasing=TRUE),]
+blue <- blue[!duplicated(blue[,"symbol"]),]
+
+tur <- results[which(results[,"ModuleName"]=="turquoise"),]
+tur <- tur[order(tur[,"MEturquoise"],decreasing=TRUE),]
+tur <- tur[!duplicated(tur[,"symbol"]),]
+
+pink <- results[which(results[,"ModuleName"]=="pink"),]
+pink <- pink[order(pink[,"MEpink"],decreasing=TRUE),]
+pink <- pink[!duplicated(pink[,"symbol"]),]
+
+black <- results[which(results[,"ModuleName"]=="black"),]
+black <- black[order(black[,"MEblack"],decreasing=TRUE),]
+black <- black[!duplicated(black[,"symbol"]),]
+
+yellow <- results[which(results[,"ModuleName"]=="yellow"),]
+yellow <- yellow[order(yellow[,"MEyellow"],decreasing=TRUE),]
+yellow <- yellow[!duplicated(yellow[,"symbol"]),]
+
+green <- results[which(results[,"ModuleName"]=="green"),]
+green <- green[order(green[,"MEgreen"],decreasing=TRUE),]
+green <- green[!duplicated(green[,"symbol"]),]
+
+eigengene <- c(blue[1,"symbol"],tur[1,"symbol"],pink[1,"symbol"],black[1,"symbol"],yellow[1,"symbol"],green[1,"symbol"])
+
+##take top x genes from each module
+
+top <- 1:100
+
+blue <- blue[top,"symbol"]
+tur <- tur[top,"symbol"]
+pink <- pink[top,"symbol"]
+black <- black[top,"symbol"]
+yellow <- yellow[top,"symbol"]
+green <- green[top,"symbol"]
+
+sym <- c(blue,tur,pink,black,yellow,green)
+
+sym.go <- sym[which(sym %in% symbols.go)]
+
+
+
+sym.go <- c(sym.go,eigengene)
+
+##get genes out of TOM matrix and send to cytoscape
+
+TOM.7 <- TOM^7
+TOM.sym.go <- TOM.7[sym.go,sym.go]
+gg
+
